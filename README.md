@@ -58,7 +58,7 @@ For example, in PowerShell, set `$env:AI_API_KEY`, `$env:AI_MODEL`, and optional
 - Persian RTL by default, English interface localization, responsive layout, and a locally persisted light/dark appearance preference.
 - Dashboard project statistics come from SQLite-backed records; dated open tasks and future shooting days are listed with overdue highlighting and direct navigation.
 - Persistent project metadata, screenplay draft, casting-role, production-task, and project crew CRUD.
-- Structured screenplay blocks for scene headings, action, character cues, parentheticals, dialogue, and transitions; saves to a Fountain-compatible text representation.
+- Structured screenplay blocks for scene headings, action, character cues, parentheticals, dialogue, and transitions; imports and exports Fountain/plain-text files and preserves element types during round trips.
 - Per-draft, numbered screenplay snapshots on each changed save; inspect read-only earlier text and restore it as a new revision without deleting later work. Existing drafts are backfilled into the first history entry.
 - Searchable talent profiles, role-linked casting assignments, candidate stages, and separately revealed contact/private-note fields.
 - Scene breakdown for reusable location links, time of day, characters, props, costumes, set dressing, production notes, continuity, and estimated duration.
@@ -70,21 +70,4 @@ For example, in PowerShell, set `$env:AI_API_KEY`, `$env:AI_MODEL`, and optional
 - Persistent project tasks are now classified across development, pre-production, production, post-production, and archive. A post-production starter checklist can add editable tasks for picture editing, sound, music, color, VFX, review, and delivery, with the same assignment, deadline, priority, and status workflow as set tasks.
 - Optional project-aware AI analysis with persisted suggestions and explicit accept/dismiss review.
 - Persistent project discussion linked to a project, screenplay draft, or production scene; personal notes are isolated per user and never enter the shared activity feed.
-- Persistent in-app project notifications are generated from shared activity for other current project members, scoped to the recipient and active workspace, with unread counts, individual/read-all actions, and direct navigation to the affected filmmaking module.
-- Private project attachments with validated file signatures, stored metadata, optional scene links, project-role access checks, authenticated downloads, and coordinated cleanup when a file or project is deleted. PDF, Fountain-compatible text, common image formats, short video references, and audio references are supported up to 25 MB per file.
-- Project activity history with actor snapshots for project, screenplay, casting, production, and discussion events; commenting and team management are enforced by project roles.
-- SQLite migrations preserve foreign-key integrity; deleting a shooting day returns its assigned scenes to the unplanned state.
-
-This is a local-first foundation with server-enforced accounts, workspace membership, project roles, invitation acceptance for new and existing accounts, workspace switching, and authorization around private casting details. Crew members are still a project roster used for assignment rather than live user-linked team records. Larger footage libraries need external object storage; password recovery, archived asset delivery, and live user-linked crew records remain future work. AI integrations remain optional and require server-side credentials.
-
-## Verify and build
-
-```sh
-npm test
-npm run test:workflow
-npm run typecheck
-npm run build
-npm start
-```
-
-`npm test` runs scene-heading parsing, screenplay revision persistence rules, call-sheet cast matching, budget total validation, and authentication primitive tests. `npm run test:workflow` boots the TypeScript API against isolated temporary SQLite and upload paths and verifies screenplay revision history, workflow phases, notifications, attachment persistence across an API restart, scene links, project-role restrictions, authenticated downloads, and file cleanup. `npm run build` type-checks the client, builds the Vite bundle, and compiles the server. No lint script is configured yet.
+... (+18 lines) [see remaining: rtk proxy git show HEAD:README.md | tail -n +73]
