@@ -11,6 +11,7 @@ const activityLabels: Record<string, [string, string]> = {
   'project.document_deleted': ['یکی از پیوست‌های پروژه حذف شد', 'Project attachment deleted'],
   'screenplay.created': ['نسخه‌ی فیلمنامه ساخته شد', 'Screenplay draft created'],
   'screenplay.updated': ['فیلمنامه به‌روزرسانی شد', 'Screenplay updated'],
+  'screenplay.revision_restored': ['نسخه‌ای از تاریخچه‌ی فیلمنامه بازیابی شد', 'A screenplay revision was restored'],
   'discussion.comment_created': ['دیدگاه تازه ثبت شد', 'New comment posted'],
   'discussion.comment_updated': ['دیدگاه ویرایش شد', 'Comment edited'],
   'discussion.comment_deleted': ['دیدگاه حذف شد', 'Comment deleted'],

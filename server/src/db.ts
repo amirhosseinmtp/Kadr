@@ -353,6 +353,22 @@ const migrations = [
       CREATE INDEX idx_project_documents_scene ON project_documents(scene_id);
     `,
   },
+  {
+    version: 13,
+    sql: `
+      CREATE TABLE screenplay_revisions (
+        id TEXT PRIMARY KEY,
+        draft_id TEXT NOT NULL REFERENCES screenplay_drafts(id) ON DELETE CASCADE,
+        revision_number INTEGER NOT NULL CHECK(revision_number >= 1),
+        title TEXT NOT NULL,
+        body TEXT NOT NULL DEFAULT '',
+        created_by TEXT REFERENCES users(id) ON DELETE SET NULL,
+        created_at TEXT NOT NULL,
+        UNIQUE(draft_id, revision_number)
+      );
+      CREATE INDEX idx_screenplay_revisions_draft_number ON screenplay_revisions(draft_id, revision_number DESC);
+    `,
+  },
 ];
 
 for (const migration of migrations) {
@@ -364,6 +380,12 @@ for (const migration of migrations) {
     })();
   }
 }
+
+const draftsMissingHistory = db.prepare(`SELECT d.id, d.title, d.body, d.updated_at AS updatedAt
+  FROM screenplay_drafts d WHERE NOT EXISTS (SELECT 1 FROM screenplay_revisions r WHERE r.draft_id = d.id)`).all() as { id: string; title: string; body: string; updatedAt: string }[];
+const backfillRevision = db.prepare(`INSERT INTO screenplay_revisions (id, draft_id, revision_number, title, body, created_by, created_at)
+  VALUES (?, ?, 1, ?, ?, NULL, ?)`);
+for (const draft of draftsMissingHistory) backfillRevision.run(randomUUID(), draft.id, draft.title, draft.body, draft.updatedAt);
 
 const count = db.prepare('SELECT COUNT(*) AS count FROM projects').get() as { count: number };
 if (count.count === 0) {

@@ -85,6 +85,21 @@ export interface ScreenplayDraft {
   updatedAt: string;
 }
 
+export interface ScreenplayRevisionSummary {
+  id: string;
+  draftId: string;
+  revisionNumber: number;
+  title: string;
+  bodyLength: number;
+  bodyPreview: string;
+  createdByName: string;
+  createdAt: string;
+}
+
+export interface ScreenplayRevision extends ScreenplayRevisionSummary {
+  body: string;
+}
+
 export type CastingStatus = 'open' | 'shortlist' | 'cast';
 
 export interface CastingRole {

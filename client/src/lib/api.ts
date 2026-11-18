@@ -1,4 +1,4 @@
-import type { AiAssistMode, AiSuggestion, AuthSession, AuthUser, BudgetCurrency, CallSheet, CallSheetInput, CastingAssignment, CastingAssignmentStatus, CastingRole, NotificationInbox, ProjectDocument, ProjectDocumentCategory, ProjectNotification, ProductionLocation, ProductionResource, ProductionResourceKind, ProductionScene, ProductionTask, Project, ProjectActivity, ProjectBudget, ProjectBudgetItemInput, ProjectComment, ProjectCommentScope, ProjectMember, SceneShootStatus, ScreenplayDraft, ShootingDay, TalentProfile, WorkspaceInvitation, WorkspaceMember, WorkspaceOption, WorkspaceRole } from '../../../shared/types';
+import type { AiAssistMode, AiSuggestion, AuthSession, AuthUser, BudgetCurrency, CallSheet, CallSheetInput, CastingAssignment, CastingAssignmentStatus, CastingRole, NotificationInbox, ProjectDocument, ProjectDocumentCategory, ProjectNotification, ProductionLocation, ProductionResource, ProductionResourceKind, ProductionScene, ProductionTask, Project, ProjectActivity, ProjectBudget, ProjectBudgetItemInput, ProjectComment, ProjectCommentScope, ProjectMember, SceneShootStatus, ScreenplayDraft, ScreenplayRevision, ScreenplayRevisionSummary, ShootingDay, TalentProfile, WorkspaceInvitation, WorkspaceMember, WorkspaceOption, WorkspaceRole } from '../../../shared/types';
 
 let csrfToken: string | null = null;
 export function setCsrfToken(token: string | null) { csrfToken = token; }
@@ -65,6 +65,9 @@ export const api = {
   drafts: (projectId: string) => request<ScreenplayDraft[]>(`/projects/${projectId}/drafts`),
   createDraft: (projectId: string, title: string, body = '') => request<ScreenplayDraft>(`/projects/${projectId}/drafts`, { method: 'POST', body: JSON.stringify({ title, body }) }),
   updateDraft: (id: string, title: string, body: string) => request<ScreenplayDraft>(`/drafts/${id}`, { method: 'PATCH', body: JSON.stringify({ title, body }) }),
+  draftRevisions: (draftId: string) => request<ScreenplayRevisionSummary[]>(`/drafts/${draftId}/revisions`),
+  draftRevision: (draftId: string, revisionId: string) => request<ScreenplayRevision>(`/drafts/${draftId}/revisions/${revisionId}`),
+  restoreDraftRevision: (draftId: string, revisionId: string) => request<ScreenplayDraft>(`/drafts/${draftId}/revisions/${revisionId}/restore`, { method: 'POST' }),
   roles: (projectId: string) => request<CastingRole[]>(`/projects/${projectId}/roles`),
   createRole: (projectId: string, character: string, description: string) => request<CastingRole>(`/projects/${projectId}/roles`, { method: 'POST', body: JSON.stringify({ character, description }) }),
   updateRole: (id: string, status: CastingRole['status'], candidate: string) => request<CastingRole>(`/roles/${id}`, { method: 'PATCH', body: JSON.stringify({ status, candidate }) }),

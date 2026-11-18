@@ -10,7 +10,7 @@
     "build": "tsc --noEmit && vite build && tsc -p server/tsconfig.json",
     "start": "node server-dist/server/src/index.js",
     "typecheck": "tsc --noEmit",
-    "test": "tsx --test server/src/domain/scenes.test.ts server/src/domain/call-sheet.test.ts server/src/domain/budget.test.ts server/src/services/auth.test.ts",
+    "test": "tsx --test server/src/domain/scenes.test.ts server/src/domain/screenplay-revisions.test.ts server/src/domain/call-sheet.test.ts server/src/domain/budget.test.ts server/src/services/auth.test.ts",
     "test:workflow": "node scripts/workflow-persistence.test.mjs"
   },
   "dependencies": {

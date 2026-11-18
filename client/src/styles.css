@@ -800,3 +800,26 @@ button:disabled { cursor: not-allowed; opacity: .55; }
 .dark .project-document-icon { background: #303a33; color: #b3c9b5; }.dark .project-document-download { color: #b5c8b6; }
 .dark .project-document-readonly, .dark .project-document-privacy, .dark .project-document-file-field small { color: #98a59a; }.dark .project-document-empty { color: #a0ada2; }.dark .project-document-empty strong { color: #cbd6cc; }
 @media (max-width: 650px) { .project-document-upload { grid-template-columns: 1fr; }.project-document-upload-row { grid-template-columns: 1fr; }.project-document-upload-row .button { justify-content: center; }.project-document-card { align-items: flex-start; }.project-documents-panel { padding: 10px; } }
+
+/* Screenplay revision history */
+.revision-overlay { align-items: center; background: #111814a8; display: flex; inset: 0; justify-content: center; padding: 20px; position: fixed; z-index: 90; }
+.revision-dialog { background: #f8f9f6; border: 1px solid #dfe5dc; border-radius: 11px; box-shadow: 0 24px 90px #0a100d55; display: flex; flex-direction: column; max-height: min(88vh, 820px); max-width: 980px; overflow: hidden; width: 100%; }
+.revision-dialog-heading { align-items: flex-start; background: #fff; border-bottom: 1px solid #e8ece6; display: flex; gap: 12px; justify-content: space-between; padding: 14px 16px; }
+.revision-dialog-heading h3 { color: #3e4b42; font-size: 12px; margin: 3px 0; }
+.revision-dialog-heading p { color: #8a958d; font-size: 8px; line-height: 1.8; margin: 0; }
+.revision-dialog-body { display: grid; flex: 1; grid-template-columns: minmax(210px, .36fr) minmax(0, 1fr); min-height: 0; }
+.revision-list { background: #fcfcfa; border-inline-end: 1px solid #e9ede7; display: flex; flex-direction: column; gap: 5px; overflow: auto; padding: 9px; }
+.revision-entry { background: transparent; border: 1px solid transparent; border-radius: 6px; color: inherit; cursor: pointer; display: grid; gap: 5px; padding: 8px; text-align: start; }
+.revision-entry:hover { background: #f2f5ef; }.revision-entry.selected { background: #edf3eb; border-color: #dbe6d8; }
+.revision-entry > span { align-items: center; display: flex; gap: 8px; justify-content: space-between; }
+.revision-entry > span strong { color: #5b705e; font-size: 8px; }.revision-entry time, .revision-entry small { color: #929d93; font-size: 7px; }
+.revision-entry > b { color: #4c594f; font-size: 8px; font-weight: 600; overflow-wrap: anywhere; }
+.revision-preview-panel { display: flex; flex-direction: column; gap: 9px; min-height: 250px; overflow: hidden; padding: 12px; }
+.revision-preview-heading { align-items: flex-start; display: flex; gap: 10px; justify-content: space-between; }
+.revision-preview-heading > div { display: grid; gap: 4px; min-width: 0; }.revision-preview-heading strong { color: #4c594f; font-size: 9px; overflow-wrap: anywhere; }.revision-preview-heading small, .revision-source-note { color: #98a198; font-size: 7px; line-height: 1.7; }
+.revision-preview { background: #fff; border: 1px solid #e9ede7; border-radius: 6px; color: #4f5d52; flex: 1; font-family: inherit; font-size: 9px; line-height: 2.1; margin: 0; min-height: 180px; overflow: auto; padding: 12px; text-align: start; unicode-bidi: plaintext; white-space: pre-wrap; }
+.revision-empty { align-items: center; color: #9ba49b; display: flex; flex: 1; font-size: 8px; justify-content: center; min-height: 130px; padding: 15px; text-align: center; }
+.dark .revision-dialog { background: #202724; border-color: #303a35; }.dark .revision-dialog-heading { background: #1b211e; border-color: #303a35; }.dark .revision-dialog-heading h3, .dark .revision-preview-heading strong { color: #d0dbd1; }.dark .revision-dialog-heading p, .dark .revision-preview-heading small, .dark .revision-source-note { color: #9aa79d; }
+.dark .revision-list { background: #1b211e; border-color: #303a35; }.dark .revision-entry:hover { background: #252e28; }.dark .revision-entry.selected { background: #2d3a30; border-color: #3b4b3e; }.dark .revision-entry > span strong { color: #bad0bb; }.dark .revision-entry time, .dark .revision-entry small { color: #97a398; }.dark .revision-entry > b { color: #d0dbd1; }
+.dark .revision-preview { background: #252d28; border-color: #354039; color: #d1dbd2; }.dark .revision-empty { color: #a0ada2; }
+@media (max-width: 650px) { .revision-overlay { padding: 8px; }.revision-dialog { max-height: 94vh; }.revision-dialog-body { grid-template-columns: 1fr; grid-template-rows: minmax(120px, .42fr) minmax(200px, 1fr); }.revision-list { border-bottom: 1px solid #e9ede7; border-inline-end: 0; display: grid; grid-auto-columns: minmax(160px, 1fr); grid-auto-flow: column; grid-template-rows: 1fr; overflow-x: auto; overflow-y: hidden; }.revision-preview-panel { min-height: 0; }.revision-preview { min-height: 120px; }.dark .revision-list { border-color: #303a35; } }

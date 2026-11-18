@@ -90,6 +90,7 @@ export function CollaborationPanel({ projectId, language, onToast }: { projectId
         'project.document_deleted': ['یکی از پیوست‌های پروژه حذف شد', 'Project attachment deleted'],
       'screenplay.created': ['نسخه‌ی فیلمنامه ساخته شد', 'Screenplay draft created'],
       'screenplay.updated': ['نسخه‌ی فیلمنامه به‌روزرسانی شد', 'Screenplay draft updated'],
+        'screenplay.revision_restored': ['نسخه‌ای از تاریخچه‌ی فیلمنامه بازیابی شد', 'Screenplay revision restored'],
       'discussion.comment_created': ['دیدگاه تازه ثبت شد', 'Comment added'],
       'discussion.comment_updated': ['دیدگاه ویرایش شد', 'Comment edited'],
       'discussion.comment_deleted': ['دیدگاه حذف شد', 'Comment deleted'],

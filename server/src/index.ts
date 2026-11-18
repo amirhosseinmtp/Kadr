@@ -4,10 +4,11 @@ import { randomUUID } from 'node:crypto';
 import { createReadStream, existsSync } from 'node:fs';
 import { mkdir, unlink, writeFile } from 'node:fs/promises';
 import { db } from './db.js';
-import { budgetCategories, budgetCurrencies, projectDocumentCategories, projectWorkflowPhases, type AiAssistMode, type AiSuggestion, type AvailabilityStatus, type BudgetCategory, type BudgetCurrency, type BudgetItemStatus, type CallSheet, type ProjectBudgetItemInput, type ProjectDocument, type ProjectDocumentCategory, type ProjectWorkflowPhase, type ProductionScene, type SceneEnvironment, type SceneShootStatus, type SceneTimeOfDay, type ShootingDay } from '../../shared/types.js';
+import { budgetCategories, budgetCurrencies, projectDocumentCategories, projectWorkflowPhases, type AiAssistMode, type AiSuggestion, type AvailabilityStatus, type BudgetCategory, type BudgetCurrency, type BudgetItemStatus, type CallSheet, type ProjectBudgetItemInput, type ProjectDocument, type ProjectDocumentCategory, type ProjectWorkflowPhase, type ProductionScene, type SceneEnvironment, type SceneShootStatus, type SceneTimeOfDay, type ScreenplayRevision, type ScreenplayRevisionSummary, type ShootingDay } from '../../shared/types.js';
 import { extractFountainSceneHeadings, parseSceneHeading } from './domain/scenes.js';
 import { castForScheduledScenes } from './domain/call-sheet.js';
 import { summarizeBudget } from './domain/budget.js';
+import { appendScreenplayRevision, screenplayRevisionChanged } from './domain/screenplay-revisions.js';
 import { configuredAiProvider } from './services/ai.js';
 import { constantTimeEqual, createOpaqueToken, hashPassword, hashToken, verifyPassword } from './services/auth.js';
 import type { AuthUser, WorkspaceRole } from '../../shared/types.js';
@@ -40,6 +41,8 @@ app.use(express.json({ limit: '2mb' }));
 
 const projectColumns = `id, title, format, status, progress, logline, synopsis, genre, duration_minutes AS durationMinutes, language_code AS languageCode, budget_currency AS budgetCurrency, director, writer, producer, target_date AS targetDate, created_at AS createdAt, updated_at AS updatedAt`;
 const draftColumns = `id, project_id AS projectId, title, body, updated_at AS updatedAt`;
+const screenplayRevisionColumns = `r.id, r.draft_id AS draftId, r.revision_number AS revisionNumber, r.title,
+  length(r.body) AS bodyLength, substr(r.body, 1, 280) AS bodyPreview, COALESCE(u.display_name, '') AS createdByName, r.created_at AS createdAt`;
 const roleColumns = `id, project_id AS projectId, character, description, status, candidate, created_at AS createdAt`;
 const taskColumns = `t.id, t.project_id AS projectId, t.title, t.department, t.phase, t.due_date AS dueDate, t.status, t.priority, t.assignee_id AS assigneeId, m.name AS assigneeName, t.created_at AS createdAt`;
 const sceneColumns = `s.id, s.project_id AS projectId, s.screenplay_order AS screenplayOrder, s.heading, s.environment, s.location, s.location_id AS locationId, s.time_of_day AS timeOfDay, s.characters_json AS charactersJson, s.props_json AS propsJson, s.costumes_json AS costumesJson, s.set_dressing_json AS setDressingJson, s.estimated_minutes AS estimatedMinutes, s.production_notes AS productionNotes, s.continuity_notes AS continuityNotes, s.shoot_status AS shootStatus, s.shooting_day_id AS shootingDayId, s.shooting_order AS shootingOrder, d.shoot_date AS shootingDate, d.title AS shootingDayTitle, s.created_at AS createdAt, s.updated_at AS updatedAt`;
@@ -720,20 +723,59 @@ app.post('/api/projects/:projectId/drafts', (req, res) => {
   if (!projectExists(projectId)) return error(res, 404, 'پروژه پیدا نشد.');
   const title = typeof req.body.title === 'string' && req.body.title.trim() ? req.body.title.trim() : 'نسخه‌ی تازه';
   const body = typeof req.body.body === 'string' ? req.body.body : '';
-  const id = randomUUID(); const now = new Date().toISOString();
-  db.prepare('INSERT INTO screenplay_drafts (id, project_id, title, body, updated_at) VALUES (?, ?, ?, ?, ?)').run(id, projectId, title, body, now);
-  recordActivity(projectId, activeAuth(req)!, 'screenplay.created', 'screenplay', id);
+  if (title.length > 180 || body.length > 1_500_000) return error(res, 400, 'عنوان نسخه یا متن فیلمنامه بیش از حد طولانی است.');
+  const id = randomUUID(); const now = new Date().toISOString(); const auth = activeAuth(req)!;
+  db.transaction(() => {
+    db.prepare('INSERT INTO screenplay_drafts (id, project_id, title, body, updated_at) VALUES (?, ?, ?, ?, ?)').run(id, projectId, title, body, now);
+    appendScreenplayRevision(db, id, { title, body }, auth.userId, now);
+    recordActivity(projectId, auth, 'screenplay.created', 'screenplay', id);
+  })();
   res.status(201).json(db.prepare(`SELECT ${draftColumns} FROM screenplay_drafts WHERE id = ?`).get(id));
 });
 
 app.patch('/api/drafts/:draftId', (req, res) => {
-  const draft = db.prepare('SELECT id, project_id AS projectId FROM screenplay_drafts WHERE id = ?').get(req.params.draftId) as { id: string; projectId: string } | undefined;
+  const draft = db.prepare('SELECT id, project_id AS projectId, title, body FROM screenplay_drafts WHERE id = ?').get(req.params.draftId) as { id: string; projectId: string; title: string; body: string } | undefined;
   if (!draft) return error(res, 404, 'پیش‌نویس پیدا نشد.');
   const title = typeof req.body.title === 'string' && req.body.title.trim() ? req.body.title.trim() : 'نسخه‌ی تازه';
   const body = typeof req.body.body === 'string' ? req.body.body : '';
-  db.prepare('UPDATE screenplay_drafts SET title = ?, body = ?, updated_at = ? WHERE id = ?').run(title, body, new Date().toISOString(), req.params.draftId);
-  recordActivity(draft.projectId, activeAuth(req)!, 'screenplay.updated', 'screenplay', draft.id);
+  if (title.length > 180 || body.length > 1_500_000) return error(res, 400, 'عنوان نسخه یا متن فیلمنامه بیش از حد طولانی است.');
+  const auth = activeAuth(req)!;
+  if (screenplayRevisionChanged(draft, { title, body })) {
+    const now = new Date().toISOString();
+    db.transaction(() => {
+      appendScreenplayRevision(db, draft.id, { title, body }, auth.userId, now);
+      db.prepare('UPDATE screenplay_drafts SET title = ?, body = ?, updated_at = ? WHERE id = ?').run(title, body, now, draft.id);
+      recordActivity(draft.projectId, auth, 'screenplay.updated', 'screenplay', draft.id);
+    })();
+  }
   res.json(db.prepare(`SELECT ${draftColumns} FROM screenplay_drafts WHERE id = ?`).get(req.params.draftId));
+});
+
+app.get('/api/drafts/:draftId/revisions', (req, res) => {
+  const revisions = db.prepare(`SELECT ${screenplayRevisionColumns} FROM screenplay_revisions r
+    LEFT JOIN users u ON u.id = r.created_by WHERE r.draft_id = ? ORDER BY r.revision_number DESC`).all(req.params.draftId) as ScreenplayRevisionSummary[];
+  res.json(revisions);
+});
+
+app.get('/api/drafts/:draftId/revisions/:revisionId', (req, res) => {
+  const revision = db.prepare(`SELECT ${screenplayRevisionColumns}, r.body FROM screenplay_revisions r
+    LEFT JOIN users u ON u.id = r.created_by WHERE r.draft_id = ? AND r.id = ?`).get(req.params.draftId, req.params.revisionId) as ScreenplayRevision | undefined;
+  if (!revision) return error(res, 404, 'نسخه‌ی تاریخی پیدا نشد.');
+  res.json(revision);
+});
+
+app.post('/api/drafts/:draftId/revisions/:revisionId/restore', (req, res) => {
+  const draft = db.prepare('SELECT id, project_id AS projectId FROM screenplay_drafts WHERE id = ?').get(req.params.draftId) as { id: string; projectId: string } | undefined;
+  if (!draft) return error(res, 404, 'پیش‌نویس پیدا نشد.');
+  const revision = db.prepare('SELECT title, body FROM screenplay_revisions WHERE draft_id = ? AND id = ?').get(draft.id, req.params.revisionId) as { title: string; body: string } | undefined;
+  if (!revision) return error(res, 404, 'نسخه‌ی تاریخی پیدا نشد.');
+  const auth = activeAuth(req)!; const now = new Date().toISOString();
+  db.transaction(() => {
+    appendScreenplayRevision(db, draft.id, revision, auth.userId, now);
+    db.prepare('UPDATE screenplay_drafts SET title = ?, body = ?, updated_at = ? WHERE id = ?').run(revision.title, revision.body, now, draft.id);
+    recordActivity(draft.projectId, auth, 'screenplay.revision_restored', 'screenplay', draft.id);
+  })();
+  res.json(db.prepare(`SELECT ${draftColumns} FROM screenplay_drafts WHERE id = ?`).get(draft.id));
 });
 
 const commentColumns = `c.id, c.project_id AS projectId, c.author_id AS authorId, c.author_name AS authorName, c.scope_type AS scopeType, c.scope_id AS scopeId, c.body, c.created_at AS createdAt, c.updated_at AS updatedAt`;

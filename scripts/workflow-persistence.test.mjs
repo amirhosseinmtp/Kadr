@@ -26,9 +26,11 @@ try { await access(uploadDirectory); throw new Error('The generated isolated upl
 catch (cause) { if (cause?.code !== 'ENOENT') throw cause; }
 let child;
 let serverError = '';
+let serverOutput = '';
 
 function startServer() {
   serverError = '';
+  serverOutput = '';
   child = spawn(process.execPath, ['node_modules/tsx/dist/cli.mjs', 'server/src/index.ts'], {
     cwd: process.cwd(),
     env: {
@@ -43,20 +45,27 @@ function startServer() {
       KADR_DB_PATH: dbPath,
       KADR_UPLOAD_DIR: uploadDirectory,
     },
-    stdio: ['ignore', 'ignore', 'pipe'],
+    stdio: ['ignore', 'pipe', 'pipe'],
   });
+  child.stdout.setEncoding('utf8');
+  child.stdout.on('data', (chunk) => { serverOutput += chunk; });
   child.stderr.setEncoding('utf8');
   child.stderr.on('data', (chunk) => { serverError += chunk; });
   return child;
 }
 
 async function waitUntilReady() {
-  for (let attempt = 0; attempt < 50; attempt += 1) {
-    if (child.exitCode !== null) throw new Error(`API exited during startup: ${serverError}`);
-    try { if ((await fetch(`${base}/health`)).ok) return; } catch { /* Wait for the loopback listener. */ }
+  let lastHealth = 'no response';
+  for (let attempt = 0; attempt < 120; attempt += 1) {
+    if (child.exitCode !== null) throw new Error(`API exited during startup: ${serverError}\n${serverOutput}`);
+    try {
+      const response = await fetch(`${base}/health`);
+      if (response.ok) return;
+      lastHealth = `${response.status} ${await response.text()}`;
+    } catch (cause) { lastHealth = cause instanceof Error ? cause.message : String(cause); }
     await new Promise((resolve) => setTimeout(resolve, 100));
   }
-  throw new Error(`API did not become ready: ${serverError}`);
+  throw new Error(`API did not become ready (${lastHealth}): ${serverError}\n${serverOutput}`);
 }
 
 async function request(method, route, { body, session } = {}) {
@@ -101,6 +110,27 @@ try {
   const project = await request('POST', '/projects', { session, body: { title: 'Post Workflow Smoke', format: 'short' } });
   assert.equal(project.status, 201);
   const projectId = project.data.id;
+  const draft = await request('POST', `/projects/${projectId}/drafts`, { session, body: { title: 'First draft', body: 'INT. ROOM - DAY\n\nFirst version.' } });
+  assert.equal(draft.status, 201);
+  const draftId = draft.data.id;
+  const initialRevisions = await request('GET', `/drafts/${draftId}/revisions`, { session });
+  assert.equal(initialRevisions.status, 200);
+  assert.equal(initialRevisions.data.length, 1);
+  assert.equal(initialRevisions.data[0].revisionNumber, 1);
+  const firstRevisionId = initialRevisions.data[0].id;
+  const editedDraft = await request('PATCH', `/drafts/${draftId}`, { session, body: { title: 'Second draft', body: 'INT. ROOM - NIGHT\n\nSecond version.' } });
+  assert.equal(editedDraft.status, 200);
+  const afterEditRevisions = await request('GET', `/drafts/${draftId}/revisions`, { session });
+  assert.deepEqual(afterEditRevisions.data.map((item) => item.revisionNumber), [2, 1]);
+  const firstSnapshot = await request('GET', `/drafts/${draftId}/revisions/${firstRevisionId}`, { session });
+  assert.equal(firstSnapshot.data.body, 'INT. ROOM - DAY\n\nFirst version.');
+  const restoredDraft = await request('POST', `/drafts/${draftId}/revisions/${firstRevisionId}/restore`, { session });
+  assert.equal(restoredDraft.status, 200);
+  assert.equal(restoredDraft.data.title, 'First draft');
+  assert.equal(restoredDraft.data.body, 'INT. ROOM - DAY\n\nFirst version.');
+  const afterRestoreRevisions = await request('GET', `/drafts/${draftId}/revisions`, { session });
+  assert.deepEqual(afterRestoreRevisions.data.map((item) => item.revisionNumber), [3, 2, 1]);
+
   const scene = await request('POST', `/projects/${projectId}/scenes`, { session, body: { heading: 'INT. PERSIAN STUDIO - DAY' } });
   assert.equal(scene.status, 201);
   const otherProject = await request('POST', '/projects', { session, body: { title: 'Other Production', format: 'short' } });
@@ -146,6 +176,10 @@ try {
   const viewerReply = await request('POST', '/auth/register', { body: { displayName: 'Workflow Viewer', email: 'workflow-viewer@example.test', password: 'viewer-password-123', invitationToken: invitation.data.invitationToken } });
   assert.equal(viewerReply.status, 200);
   const viewer = { cookie: viewerReply.cookie.split(';')[0], csrfToken: viewerReply.data.csrfToken };
+  const viewerRevisions = await request('GET', `/drafts/${draftId}/revisions`, { session: viewer });
+  assert.equal(viewerRevisions.status, 200);
+  assert.deepEqual(viewerRevisions.data.map((item) => item.revisionNumber), [3, 2, 1]);
+  assert.equal((await request('POST', `/drafts/${draftId}/revisions/${firstRevisionId}/restore`, { session: viewer })).status, 403);
   const viewerDocuments = await request('GET', `/projects/${projectId}/documents`, { session: viewer });
   assert.equal(viewerDocuments.status, 200);
   assert.equal(viewerDocuments.data[0].id, documentId);
@@ -180,6 +214,10 @@ try {
   const restored = await request('GET', `/projects/${projectId}/tasks`, { session });
   assert.equal(restored.status, 200);
   assert.equal(restored.data.find((task) => task.id === taskId).phase, 'archive');
+  const persistedDraft = await request('GET', `/projects/${projectId}/drafts`, { session });
+  assert.equal(persistedDraft.data.find((item) => item.id === draftId).body, 'INT. ROOM - DAY\n\nFirst version.');
+  const persistedRevisions = await request('GET', `/drafts/${draftId}/revisions`, { session });
+  assert.deepEqual(persistedRevisions.data.map((item) => item.revisionNumber), [3, 2, 1]);
   const restoredDocuments = await request('GET', `/projects/${projectId}/documents`, { session });
   assert.equal(restoredDocuments.status, 200);
   assert.equal(restoredDocuments.data[0].id, documentId);
@@ -203,10 +241,11 @@ try {
   assert.equal((await request('DELETE', `/projects/${otherProject.data.id}`, { session })).status, 204);
   await assert.rejects(access(secondPath), { code: 'ENOENT' });
   assert.equal((await readdir(uploadDirectory)).length, 0);
-  console.log('PASS: workflow data and private project attachments persist across an API restart; scene links, role restrictions, downloads, and coordinated file cleanup work.');
+  console.log('PASS: screenplay revision history, workflow data, notifications, and private project attachments persist across an API restart; role restrictions, authenticated downloads, and file cleanup work.');
 } catch (cause) {
   console.error(cause);
   if (serverError) console.error(serverError);
+  if (serverOutput) console.error(serverOutput);
   process.exitCode = 1;
 } finally {
   await stopServer();

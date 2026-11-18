@@ -59,6 +59,7 @@ For example, in PowerShell, set `$env:AI_API_KEY`, `$env:AI_MODEL`, and optional
 - Dashboard project statistics come from SQLite-backed records; dated open tasks and future shooting days are listed with overdue highlighting and direct navigation.
 - Persistent project metadata, screenplay draft, casting-role, production-task, and project crew CRUD.
 - Structured screenplay blocks for scene headings, action, character cues, parentheticals, dialogue, and transitions; saves to a Fountain-compatible text representation.
+- Per-draft, numbered screenplay snapshots on each changed save; inspect read-only earlier text and restore it as a new revision without deleting later work. Existing drafts are backfilled into the first history entry.
 - Searchable talent profiles, role-linked casting assignments, candidate stages, and separately revealed contact/private-note fields.
 - Scene breakdown for reusable location links, time of day, characters, props, costumes, set dressing, production notes, continuity, and estimated duration.
 - Reusable locations and production resources that can be linked to scenes across projects; project crew roster and task ownership.
@@ -86,4 +87,4 @@ npm run build
 npm start
 ```
 
-`npm test` runs scene-heading parsing, call-sheet cast matching, budget total validation, and authentication primitive tests. `npm run test:workflow` boots the TypeScript API against isolated temporary SQLite and upload paths and verifies workflow phase, notification, and attachment persistence across an API restart, scene links, project-role restrictions, authenticated downloads, and file cleanup. `npm run build` type-checks the client, builds the Vite bundle, and compiles the server. No lint script is configured yet.
+`npm test` runs scene-heading parsing, screenplay revision persistence rules, call-sheet cast matching, budget total validation, and authentication primitive tests. `npm run test:workflow` boots the TypeScript API against isolated temporary SQLite and upload paths and verifies screenplay revision history, workflow phases, notifications, attachment persistence across an API restart, scene links, project-role restrictions, authenticated downloads, and file cleanup. `npm run build` type-checks the client, builds the Vite bundle, and compiles the server. No lint script is configured yet.
