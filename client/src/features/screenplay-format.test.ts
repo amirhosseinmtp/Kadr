@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { parseFountain, serializeFountain, type ScriptBlock } from './screenplay-format';
+import { canonicalizeFountain, parseFountain, serializeFountain, type ScriptBlock } from './screenplay-format';
 
 test('Fountain round-trip preserves scene, action, character, parenthetical, dialogue, and transition elements', () => {
   const blocks: ScriptBlock[] = [
@@ -38,4 +38,14 @@ test('parser reads a conventional Fountain dialogue block with an inline parenth
     { type: 'dialogue', content: 'We need to go.' },
     { type: 'transition', content: 'FADE OUT.' },
   ]);
+});
+
+test('parser skips title-page metadata and keeps older plain screenplay text canonically unchanged', () => {
+  const olderBody = 'داخلی. اتاق — شب\n\nنیما در را باز می‌کند.';
+  const imported = parseFountain('\uFEFFTitle: The Room\nCredit: Written by\nAuthor: Film Team\n\n' + olderBody);
+  assert.deepEqual(imported.map(({ type, content }) => ({ type, content })), [
+    { type: 'scene-heading', content: 'داخلی. اتاق — شب' },
+    { type: 'action', content: 'نیما در را باز می‌کند.' },
+  ]);
+  assert.equal(canonicalizeFountain(olderBody), canonicalizeFountain(serializeFountain(imported)));
 });

@@ -30,8 +30,9 @@ function cleanForcedPrefix(content: string, type: ElementType): string {
 }
 
 export function parseFountain(source: string): ScriptBlock[] {
-  const paragraphs = source.replace(/\r\n?/g, '\n').split(/\n\s*\n+/).map((item) => item.trim()).filter(Boolean);
+  const paragraphs = source.replace(/^\uFEFF/, '').replace(/\r\n?/g, '\n').split(/\n\s*\n+/).map((item) => item.trim()).filter(Boolean);
   let inDialogue = false;
+  let beforeFirstScriptElement = true;
   const blocks: ScriptBlock[] = [];
   const add = (type: ElementType, content: string) => {
     const cleaned = cleanForcedPrefix(content, type);
@@ -40,8 +41,11 @@ export function parseFountain(source: string): ScriptBlock[] {
   paragraphs.forEach((content, index) => {
     const lines = content.split('\n').map((line) => line.trim()).filter(Boolean);
     const firstLine = lines[0];
+    if (beforeFirstScriptElement && /^(?:title|credit|author|authors|source|notes|draft date|contact|copyright):/i.test(firstLine)) return;
+    if (/^(?:={3,}|=\s|\/\*.*\*\/)/.test(firstLine)) return;
     const nextLine = lines[1] ?? paragraphs[index + 1]?.split('\n')[0].trim() ?? '';
     const type = identify(firstLine, nextLine, inDialogue);
+    beforeFirstScriptElement = false;
     if (type === 'character' && lines.length > 1) {
       add('character', lines[0]);
       let dialogue: string[] = [];
@@ -70,4 +74,8 @@ export function serializeFountain(blocks: ScriptBlock[]): string {
     if (block.type === 'action') return `!${content}`;
     return content;
   }).filter(Boolean).join('\n\n');
+}
+
+export function canonicalizeFountain(source: string): string {
+  return serializeFountain(parseFountain(source));
 }

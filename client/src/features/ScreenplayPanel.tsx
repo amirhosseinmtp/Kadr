@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { ArrowDown, ArrowUp, Check, Clapperboard, Download, FileText, History, Plus, RotateCcw, Save, Send, Sparkles, Trash2, Upload, X } from 'lucide-react';
 import type { AiAssistMode, AiSuggestion, ScreenplayDraft, ScreenplayRevision, ScreenplayRevisionSummary } from '../../../shared/types';
-import { elementTypes, parseFountain, serializeFountain, type ElementType, type ScriptBlock } from './screenplay-format';
+import { canonicalizeFountain, elementTypes, parseFountain, serializeFountain, type ElementType, type ScriptBlock } from './screenplay-format';
 import { api } from '../lib/api';
 import type { Language } from '../lib/i18n';
 import { t } from '../lib/i18n';
@@ -35,7 +35,7 @@ export function ScreenplayPanel({ projectId, language, onToast }: { projectId: s
   const fa = language === 'fa';
   const body = useMemo(() => serializeFountain(blocks), [blocks]);
   const selectedDraft = drafts.find((draft) => draft.id === selectedId);
-  const hasUnsavedChanges = Boolean(selectedDraft && (selectedDraft.title !== title || selectedDraft.body !== body));
+  const hasUnsavedChanges = Boolean(selectedDraft && (selectedDraft.title !== title || canonicalizeFountain(selectedDraft.body) !== canonicalizeFountain(body)));
 
   const selectDraft = (draft: ScreenplayDraft) => {
     if (hasUnsavedChanges && !window.confirm(fa ? 'تغییرات ذخیره‌نشده کنار گذاشته شوند و نسخه‌ی دیگری باز شود؟' : 'Discard unsaved changes and open another draft?')) return;
@@ -77,7 +77,7 @@ export function ScreenplayPanel({ projectId, language, onToast }: { projectId: s
     finally { setBusy(false); }
   };
   const save = async () => {
-    if (!selectedId || !canEdit) return;
+    if (!selectedId || !canEdit || !hasUnsavedChanges) return;
     setBusy(true);
     try {
       const updated = await api.updateDraft(selectedId, title, body);
@@ -116,6 +116,6 @@ export function ScreenplayPanel({ projectId, language, onToast }: { projectId: s
   const addBlock = (type: ElementType = 'action') => setBlocks((current) => [...current, { id: `${Date.now()}-${Math.random()}`, type, content: '' }]);
   const importFountain = async (file?: File) => {
     if (!file || !canEdit) return;
-    if (file.size > 2 * 1024 * 1024) { onToast(fa ? 'فایل فیلمنامه باید کمتر از ۲ مگابایت باشد.' : 'Screenplay files must be 2 MB or smaller.'); return; }
+    if (file.size > 1_500_000) { onToast(fa ? 'فایل فیلمنامه باید حداکثر ۱٫۵ مگابایت باشد.' : 'Screenplay files must be 1.5 MB or smaller.'); return; }
     if (!/\.(?:fountain|txt)$/i.test(file.name)) { onToast(fa ? 'فقط فایل Fountain یا متن ساده پذیرفته می‌شود.' : 'Choose a Fountain or plain text file.'); return; }
 ... (+76 lines) [see remaining: rtk proxy git show HEAD:client/src/features/ScreenplayPanel.tsx | tail -n +121]
